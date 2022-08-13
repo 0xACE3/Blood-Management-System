@@ -2,109 +2,94 @@
 Donor ID, Date, Name, Blood group, Gender, age: 18-75, address, phone number, blood bank, 350-450ml of blood drawn
 blood type: A+, A-, B+, B-, AB+, AB-, O+, O-
 """
-import time
-import csv
-from rgbprint import *
-import pandas as pd
+from uuid import uuid4
+from typing import Optional
 
-csvfile = 'data.csv'
+from supported import BLOOD_GROUP_LITERAL, GENERAL_LITERAL
+from colored.Fore import Fore
+
+import os
+import re
+import time
+import pandas as pd
 
 
 class BMS:
     fieldnames = ["Donor ID",
-                  "First Name",
-                  "Last Name",
-                  "Blood Group",
-                  "Date",
-                  "Age",
-                  "Gender",
-                  "Phone Number"]
-    __epoch = 1650000000
-    __blood_groups = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+                    "Date",
+                    "First Name",
+                    "Last Name",
+                    "Blood Group",
+                    "Age",
+                    "Gender",
+                    "Phone Number"]
 
     def __init__(self,
-                 name: str,
-                 blood_group: str,
+                 first_name: str,
+                 last_name: str,
+                 blood_group: BLOOD_GROUP_LITERAL,
                  age: int,
-                 gender: str,
-                 phone_no: str):
+                 gender: GENERAL_LITERAL,
+                 phone_no: Optional[str] = None):
+
         # validation of correct input
-        assert 60 >= age >= 18, f"Age {age} should be between 18 and 60 years to be eligible."
-        assert gender.lower() == "male" or gender.lower() == "female", f"Gender {gender} does not exist."
-        assert blood_group in BMS.__blood_groups, f"{blood_group} is a wrong blood type."
-        assert 9 <= len(phone_no) <= 11, f"{phone_no} is not a real phone number."
+        assert 100 >= age >= 10, f"Age {age} should be between 18 and 60 years to be eligible."
 
-        self.__first_name = name.split()[0].title()
-        self.__last_name = name.split()[1].title()
-
-        self.name = f"{self.__first_name} {self.__last_name}"
-        self.gender = gender
-        self.age = age
+        self.donor_id = uuid4().fields[1]
+        self.date = time.strftime(f"%d-%m-%y")
+        self.first_name = first_name
+        self.last_name = last_name
         self.blood_group = blood_group
-        self.phone_no = phone_no
-        self.__date = time.strftime(f"%d-%m-%y")
-        self.donor_id = BMS.__unique_id()
+        self.age = age
+        self.gender = gender
+        self.phone_no = validate_phone_no(phone_no) or None
+        self.filename = None
 
-    @classmethod
-    def __unique_id(cls) -> int:
-        id = int(time.time() - cls.__epoch)
-        id <<= 2
-        return id
+    def save_to_csv(self, data_frame: pd.DataFrame,
+                    filename="bms_data.csv"):
 
-    @staticmethod
-    def create_csv(file):
-        csvfile = file
-        with open(csvfile, 'w', newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=BMS.fieldnames)
-            writer.writeheader()
+        self.filename = filename
+        if not os.path.exists("./data"):
+            os.mkdir('./data')
+
+        data_frame.to_csv(f"./data/{self.filename}")
 
     def insert_data(self):
-        with open(csvfile, "a", newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=BMS.fieldnames)
-            writer.writerow({BMS.fieldnames[0]: self.donor_id,
-                             BMS.fieldnames[1]: self.__first_name,
-                             BMS.fieldnames[2]: self.__last_name,
-                             BMS.fieldnames[3]: self.blood_group,
-                             BMS.fieldnames[4]: self.__date,
-                             BMS.fieldnames[5]: self.age,
-                             BMS.fieldnames[6]: self.gender,
-                             BMS.fieldnames[7]: self.phone_no,
-                             })
+        df = pd.read_csv(f"./data/{self.filename}")
+        data_frame = dict(zip(BMS.fieldnames, [x for x in self.__dict__.values()]))
+        df.append(data_frame, ignore_index=True)
 
-    @staticmethod
-    def show_all_data():
-
-        with open(csvfile, newline='') as f:
-            reader = csv.reader(f)
-            print("\n\n" + f"{Fore.GREEN}+ {Fore.RED}Blood {Fore.WHITE}Management {Fore.CYAN}System {Fore.GREEN}+{Fore.RESET}".center(195, f"—") + "\n\n")
-            id = 0
-            for row in reader:
-                print(
-                    '{color}{id:<5} {color1}{:<12} {color2}{:<15} {color2}{:<12} {color3}{:^15} {color4}{:^15} {color5}{:<8} {color6}{:<10} {color7}{:^10}'.format(
-                        *row,
-                        id=id,
-                        color=Fore.WHITE,
-                        color1=Fore.GREEN,
-                        color2=Fore.LIGHT_YELLOW,
-                        color3=Fore.LIGHT_RED,
-                        color4=Fore.CYAN,
-                        color5=Fore.LIGHT_MAGENTA,
-                        color6=Fore.YELLOW,
-                        color7=Fore.LIGHT_GRAY))
-                id += 1
-    @staticmethod
-    def update_row(row: int, fieldname: str, replacement):
-        df = pd.read_csv(csvfile)
-        df.loc[row, fieldname] = replacement
-        df.to_csv(csvfile, index=False)
-        print(df)
-    @staticmethod
-    def delete_row(fname, value):
-        df = pd.read_csv(csvfile)
-        df.set_index(fname, inplace=True)
-        df = df.drop(value)
-        df.to_csv(csvfile, index=False)
+    def show_all_data(self):
+        df = pd.read_csv(f"./data/{self.filename}")
         print(df)
 
+    def update_full_row(self, row_index: int, *replacement):
+        df = pd.read_csv(f"./data/{self.filename}")
+        df.loc[row_index, [x for x in self.__dict__.keys()]] = replacement
+        print(df)
 
+    def delete_row(self, row_id: int):
+        df = pd.read_csv(f"./data/{self.filename}")
+        df = df.drop(row_id)
+        print(df)
+
+    @staticmethod
+    def validate_phone_no(phone_no):
+
+        regex = re.compile(r"""( #regex for any country phone numbers
+        \+
+        (\d{1,3} | \(\d{1,3}\))?        #countrycode
+        (\s | - | \.)?                  #seprator
+        (\d{1,3} | \(\d{1,3}\))         #areacode
+        (\s | - | \.)?                  #seperator
+        (\d{3,4})                       #first 3 digits
+        (\s | - | \.)?                  #seperator
+        (\d{4})                         #last 4 digits
+        )""", re.VERBOSE | re.DOTALL)
+
+        try:
+            if regex.search(phone_no):
+                return phone_no
+        except Exception as e:
+            return None
 

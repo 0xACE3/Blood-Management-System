@@ -127,4 +127,4 @@ def delete_row():
 
 
 if __name__ == "__main__":
-    main()
+    # main()

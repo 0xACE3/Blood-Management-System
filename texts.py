@@ -1,5 +1,4 @@
-from rgbprint import *
-
+from colored.Fore import Fore
 # main text to appear in the beginning
 main_text = "\n" + f"{Fore.CYAN}+ {Fore.YELLOW} MAIN {Fore.CYAN} +{Fore.RESET}".center(120, "-") + "\n"
 
@@ -43,3 +42,4 @@ replacement_text = f"{Fore.GREEN}Enter the text you want to replace with:{Fore.R
 
 # delete_row text
 value_text = f"{Fore.WHITE}Enter the value of the field name from the expected delete row:{Fore.RESET} "
+
