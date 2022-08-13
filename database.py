@@ -33,7 +33,7 @@ class BMS:
                  phone_no: Optional[str] = None):
 
         # validation of correct input
-        assert 100 >= age >= 10, f"Age {age} should be between 18 and 60 years to be eligible."
+        assert 60 >= age >= 18, f"Age {age} should be between 18 and 60 years to be eligible."
 
         self.donor_id = uuid4().fields[1]
         self.date = time.strftime(f"%d-%m-%y")
